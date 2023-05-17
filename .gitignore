@@ -1,0 +1,11 @@
+target/*
+/target/
+.settings/*
+.vscode/*
+.classpath
+.factorypath
+.project
+/dependency-reduced-pom.xml
+.idea/**
+*.iml
+.flattened-pom.xml
