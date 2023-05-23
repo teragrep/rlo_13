@@ -48,13 +48,13 @@ class FileChannelCache implements AutoCloseable {
         RemovalListener<Path, FileChannel> listener;
         listener = removalNotification -> {
         String cause = removalNotification.getCause().name();
-        LOGGER.trace("Entry removed because: " + cause);
+        LOGGER.trace("Entry removed because: {}", cause);
 
 
             try {
                 if (!activeFileChannels.containsKey(removalNotification.getKey())) {
                     // inactive, throw it out
-                    LOGGER.trace("Removal triggered for path <[" + removalNotification.getKey() + "]>");
+                    LOGGER.trace("Removal triggered for path <[{}]>", removalNotification.getKey());
                     removalNotification.getValue().close();
                 }
             } catch (IOException e) {
@@ -73,7 +73,7 @@ class FileChannelCache implements AutoCloseable {
     FileChannel acquire(Path path) {
         lock.lock();
         try {
-            LOGGER.trace("Acquiring path <["+path+"]>");
+            LOGGER.trace("Acquiring path <[{}]>", path);
 
             FileChannel fileChannel = cache.getIfPresent(path);
             if (fileChannel == null) {
@@ -86,18 +86,18 @@ class FileChannelCache implements AutoCloseable {
             return fileChannel;
         }
         catch (AccessDeniedException accessDeniedException) {
-            LOGGER.warn("Reading of inaccessible file <["+path+"]> skipped.");
+            LOGGER.warn("Reading of inaccessible file <[{}]> skipped.", path);
             return null;
         }
         catch (NoSuchFileException noSuchFileException) {
-            LOGGER.warn("Reading of non-present file <["+path+"]> skipped.");
+            LOGGER.warn("Reading of non-present file <[{}]> skipped.", path);
             return null;
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
         finally {
-            LOGGER.trace("Acquired path <["+path+"]>");
+            LOGGER.trace("Acquired path <[{}]>", path);
             lock.unlock();
         }
     }
@@ -105,26 +105,26 @@ class FileChannelCache implements AutoCloseable {
     void release(Path path) {
         lock.lock();
         try {
-            LOGGER.trace("Releasing path <["+path+"]>");
+            LOGGER.trace("Releasing path <[{}]>", path);
             FileChannel fileChannel = activeFileChannels.get(path);
             if (fileChannel == null) {
                 throw new IllegalStateException("Attempt to remove inactive path <["+path+"]>");
             }
 
             if (cache.getIfPresent(path) == null) {
-                LOGGER.trace("Path <["+path+"]> not present in FileChannelCache, closing!");
+                LOGGER.trace("Path <[{}]> not present in FileChannelCache, closing!", path);
                 // no longer in cache, begone now!
                 try {
                     fileChannel.close();
                 }
                 catch (IOException ioException) {
-                    LOGGER.warn("Close on FileChannel for path <["+path+"]> caused: " + ioException);
+                    LOGGER.warn("Close on FileChannel for path <[{}]> caused:", path, ioException);
                 }
             }
             activeFileChannels.remove(path);
         }
         finally {
-            LOGGER.trace("Released path <["+path+"]>");
+            LOGGER.trace("Released path <[{}]>", path);
             lock.unlock();
         }
     }

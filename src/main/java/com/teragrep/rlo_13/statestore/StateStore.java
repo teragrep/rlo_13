@@ -63,7 +63,7 @@ public class StateStore implements AutoCloseable {
             if (found == null) {
                 // new DB
                 long version = 1;
-                LOGGER.trace("Created new StateStore with version <"+version+">");
+                LOGGER.trace("Created new StateStore with version <{}>", version);
                 ByteBuffer byteBuffer = ByteBuffer.allocateDirect(Long.BYTES);
                 byteBuffer.putLong(version).flip();
                 versionDb.put(key,byteBuffer);
@@ -72,7 +72,7 @@ public class StateStore implements AutoCloseable {
             else {
                 final ByteBuffer fetchedVal = txn.val();
                 long version = fetchedVal.getLong();
-                LOGGER.trace("Found existing StateStore with version <" + version + ">");
+                LOGGER.trace("Found existing StateStore with version <{}>", version);
                 return version;
             }
         }
