@@ -52,7 +52,9 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
         // !! trace log existing position
         FileChannel fileChannel = fileChannelCache.acquire(monitoredFile.getPath());
         if (fileChannel == null) {
-            LOGGER.trace("Gave up on <[{}]> due to null FileChannel.", monitoredFile.getPath());
+            if(LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Gave up on <[{}]> due to null FileChannel.", monitoredFile.getPath());
+            }
             stateStore.deleteOffset(monitoredFile.getPath());
             return;
         }
@@ -62,12 +64,14 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
         try {
             long fileChannelSize = fileChannel.size();
             if (fileChannelSize < absolutePosition) {
-                LOGGER.trace(
-                        "Path <[{}]> truncated: size: <{}> is LT position <{}>.",
-                        monitoredFile.getPath(),
-                        fileChannelSize,
-                        absolutePosition
-                );
+                if(LOGGER.isTraceEnabled()) {
+                    LOGGER.trace(
+                            "Path <[{}]> truncated: size: <{}> is LT position <{}>.",
+                            monitoredFile.getPath(),
+                            fileChannelSize,
+                            absolutePosition
+                    );
+                }
                 absolutePosition = 0;
                 stateStore.setOffset(monitoredFile.getPath(), absolutePosition);
             }
@@ -109,11 +113,13 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
 
     @Override
     public void accept(MonitoredFile monitoredFile) {
-        LOGGER.trace(
-                "Accept path <[{}]> with status <{}>",
-                monitoredFile.getPath(),
-                monitoredFile.getStatus()
-        );
+        if(LOGGER.isTraceEnabled()) {
+            LOGGER.trace(
+                    "Accept path <[{}]> with status <{}>",
+                    monitoredFile.getPath(),
+                    monitoredFile.getStatus()
+            );
+        }
 
         switch (monitoredFile.getStatus()) {
             case SYNC_NEW:
