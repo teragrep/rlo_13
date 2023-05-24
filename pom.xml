@@ -40,7 +40,7 @@
     <dependency>
       <groupId>com.teragrep</groupId>
       <artifactId>rlo_12</artifactId>
-      <version>1.0.2</version>
+      <version>1.0.3</version>
     </dependency>
     <!-- caches -->
     <dependency>
