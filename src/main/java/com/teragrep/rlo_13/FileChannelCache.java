@@ -54,7 +54,9 @@ class FileChannelCache implements AutoCloseable {
             try {
                 if (!activeFileChannels.containsKey(removalNotification.getKey())) {
                     // inactive, throw it out
-                    LOGGER.trace("Removal triggered for path <[{}]>", removalNotification.getKey());
+                    if(LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("Removal triggered for path <[{}]>", removalNotification.getKey());
+                    }
                     removalNotification.getValue().close();
                 }
             } catch (IOException e) {
