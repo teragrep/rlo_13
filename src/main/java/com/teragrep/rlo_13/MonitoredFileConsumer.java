@@ -169,6 +169,10 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                 break;
             case SYNC_DELETED:
                 readFile(monitoredFile);
+                readFile(monitoredFile);
+                readFile(monitoredFile);
+                readFile(monitoredFile);
+                readFile(monitoredFile);
                 fileChannelCache.invalidate(monitoredFile.getPath());
                 stateStore.deleteOffset(monitoredFile.getPath());
                 break;

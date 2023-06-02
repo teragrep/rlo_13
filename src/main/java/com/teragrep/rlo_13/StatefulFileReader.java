@@ -18,6 +18,7 @@
 package com.teragrep.rlo_13;
 
 import com.teragrep.rlo_12.MonitoredFile;
+import com.teragrep.rlo_13.statestore.LMDBStateStore;
 import com.teragrep.rlo_13.statestore.StateStore;
 
 import java.nio.file.Path;
@@ -32,7 +33,7 @@ public class StatefulFileReader implements Supplier<Consumer<MonitoredFile>>, Au
     private final Supplier<Consumer<FileRecord>> fileRecordConsumerSupplier;
 
     public StatefulFileReader(Path stateStorePath, Supplier<Consumer<FileRecord>> fileRecordConsumerSupplier) {
-        this.stateStore = new StateStore(stateStorePath);
+        this.stateStore = new LMDBStateStore(stateStorePath);
         this.fileChannelCache = new FileChannelCache();
         this.fileRecordConsumerSupplier = fileRecordConsumerSupplier;
     }

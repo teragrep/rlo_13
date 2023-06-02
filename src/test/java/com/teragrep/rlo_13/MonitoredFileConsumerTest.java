@@ -14,17 +14,29 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package com.teragrep.rlo_13.statestore;
 
-import java.nio.file.Path;
+package com.teragrep.rlo_13;
 
-public interface StateStore extends AutoCloseable {
-    void setOffset(Path path, long offset);
+import org.junit.jupiter.api.Test;
 
-    void deleteOffset(Path path);
+import java.util.function.Consumer;
 
-    long getOffset(Path path);
+public class MonitoredFileConsumerTest {
 
-    @Override
-    void close();
+    @Test
+    public void testReadFile() {
+
+
+
+        try (FileChannelCache fcc = new FileChannelCache()) {
+            Consumer<FileRecord> frc = new Consumer<FileRecord>() {
+                @Override
+                public void accept(FileRecord fileRecord) {
+                    // TODO
+                }
+            };
+
+            //MonitoredFileConsumer mfc = new MonitoredFileConsumer(fcc, stateStore, frc)
+        }
+    }
 }

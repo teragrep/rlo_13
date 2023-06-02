@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -45,6 +46,8 @@ public class ManualMoveTest {
     @Test
     @EnabledIfSystemProperty(named = "runManualMoveTest", matches = "true")
     public void manualTmpTest() throws InterruptedException, IOException {
+        AtomicLong readCounter = new AtomicLong();
+        AtomicLong writeCounter = new AtomicLong();
 
         String testMessage = "START" +  new String(new char[1000]).replace("\0", "X") + "END\n";
         int messageSize = testMessage.length();
@@ -60,6 +63,9 @@ public class ManualMoveTest {
                                 + " eo <"+fileRecord.getEndOffset()+">"
                 );
             }
+            else {
+                readCounter.incrementAndGet();
+            }
         };
 
         Thread writer = new Thread(() -> {
@@ -69,8 +75,16 @@ public class ManualMoveTest {
                 Files.createDirectories(path);
                 FileWriter fileWriter = new FileWriter(path + "/input.txt");
                 for(int i=0; i<Integer.MAX_VALUE; i++) {
+                    try {
+                        Thread.sleep(1);
+                    }
+                    catch (InterruptedException ignored) {
+
+                    }
+
                     fileWriter.write(testMessage);
                     fileWriter.flush();
+                    writeCounter.incrementAndGet();
                     if(i%100000==0) {
                         fileWriter.close();
                         try {
@@ -100,6 +114,7 @@ public class ManualMoveTest {
                     try {
                         Thread.sleep(1000);
                         Files.move(path1, path2, REPLACE_EXISTING);
+                        LOGGER.warn("written <{}> read <{}>", writeCounter.get(), readCounter.get());
                     }
                     catch (Exception ignored) {
 
