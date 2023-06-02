@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.function.Consumer;
 
 class MonitoredFileConsumer implements Consumer<MonitoredFile> {
@@ -44,64 +45,101 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
     }
 
     void readFile(MonitoredFile monitoredFile) {
+        final Path filePath = monitoredFile.getPath();
         // object to pass metadata within
         FileRecord fileRecord = new FileRecord(monitoredFile.getPath());
 
-        long absolutePosition = stateStore.getOffset(monitoredFile.getPath());
-        long lastRecordStart = absolutePosition;
+
+
         // !! trace log existing position
         FileChannel fileChannel = fileChannelCache.acquire(monitoredFile.getPath());
         if (fileChannel == null) {
             if(LOGGER.isTraceEnabled()) {
-                LOGGER.trace("Gave up on <[{}]> due to null FileChannel.", monitoredFile.getPath());
+                LOGGER.trace("Gave up on <[{}]> due to null FileChannel.",filePath);
             }
             stateStore.deleteOffset(monitoredFile.getPath());
             return;
         }
 
-        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(32*1024);
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         try {
-            long fileChannelSize = fileChannel.size();
-            if (fileChannelSize < absolutePosition) {
+            LOGGER.info("fileChannel position <{}>", fileChannel.position());
+            LOGGER.info("fileChannel size <{}>", fileChannel.size());
+        } catch (IOException ignored) {
+
+        }
+
+
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(32*1024);
+        ByteBuffer outputBuffer = ByteBuffer.allocateDirect(1024*1024); // todo configurable
+
+
+        long lastRecordEnd = stateStore.getOffset(monitoredFile.getPath());
+        try {
+            if (fileChannel.size() < lastRecordEnd) {
                 if(LOGGER.isTraceEnabled()) {
                     LOGGER.trace(
                             "Path <[{}]> truncated: size: <{}> is LT position <{}>.",
-                            monitoredFile.getPath(),
-                            fileChannelSize,
-                            absolutePosition
+                           filePath,
+                            fileChannel.size(),
+                            lastRecordEnd
                     );
                 }
-                absolutePosition = 0;
-                stateStore.setOffset(monitoredFile.getPath(), absolutePosition);
+                lastRecordEnd = 0;
+                stateStore.setOffset(monitoredFile.getPath(), lastRecordEnd);
             }
-            fileChannel.position(absolutePosition);
-            fileRecord.setStartOffset(absolutePosition); // set initial startingPosition
-            // note that this does not read all the changes, it will be re-read when something happens during read
-            while (fileChannel.position() < fileChannelSize) {
-                fileChannel.read(byteBuffer);
+
+            LOGGER.info("lastRecordEnd <{}> for <{}>", lastRecordEnd, filePath);
+
+            fileChannel.position(lastRecordEnd);
+            fileRecord.setStartOffset(lastRecordEnd); // set initial startingPosition
+
+            long bytesRead = 0;
+            while (fileChannel.position() < fileChannel.size()) {
+                bytesRead = fileChannel.read(byteBuffer);
+
+                if (bytesRead  < 1) {
+                    return;
+                }
+
                 byteBuffer.flip(); // reading
                 while (byteBuffer.hasRemaining()) {
                     byte b = byteBuffer.get();
-                    absolutePosition++;
-                    if (b != 10) { // newline
-                        byteArrayOutputStream.write(b);
+
+                    if (b == '\0') {
+                        throw new RuntimeException("CATTIA " + bytesRead);
+                    }
+
+                    if (b != '\n' && outputBuffer.position() != outputBuffer.capacity() - 1) {
+                        outputBuffer.put(b);
                     }
                     else {
-                        byteArrayOutputStream.write(10);
-                        LOGGER.trace("Produced fileRecord at <{}>", absolutePosition);
-                        fileRecord.setEndOffset(absolutePosition);
-                        fileRecord.setRecord(byteArrayOutputStream.toByteArray());
+                        outputBuffer.put((byte) '\n');
+                        outputBuffer.flip();
+                        LOGGER.trace("Produced fileRecord at <{}>", fileChannel.position());
+                        if(outputBuffer.remaining() == outputBuffer.capacity()) {
+                            throw new RuntimeException("WAT");
+                        }
+                        byte[] bytes = new byte[outputBuffer.remaining()];
+                        outputBuffer.get(bytes);
+
+                        fileRecord.setEndOffset(fileChannel.position());
+                        fileRecord.setRecord(bytes);
+                        //LOGGER.info("bytesRead <{}>", bytesRead);
                         fileRecordConsumer.accept(fileRecord);
-                        byteArrayOutputStream.reset();
-                        fileRecord.setStartOffset(absolutePosition); // next if any
-                        lastRecordStart = absolutePosition;
+
+                        // record complete
+                        stateStore.setOffset(monitoredFile.getPath(), fileChannel.position());
+
+                        // for next one
+                        fileRecord.setStartOffset(fileChannel.position()); // next if any
+                        fileRecord.setRecord(new byte[0]);
+                        outputBuffer.clear();
                     }
+                    bytesRead--;
                 }
                 byteBuffer.clear();
             }
             // persistence at lastRecordStart, partial ones will be re-read
-            stateStore.setOffset(monitoredFile.getPath(), lastRecordStart);
         }
         catch (IOException ioException) {
             throw new UncheckedIOException(ioException);
@@ -121,6 +159,7 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
             );
         }
 
+        LOGGER.info("<{}> entry for <{}>", monitoredFile.getStatus(), monitoredFile.getPath());
         switch (monitoredFile.getStatus()) {
             case SYNC_NEW:
                 readFile(monitoredFile);
@@ -129,10 +168,12 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                 readFile(monitoredFile);
                 break;
             case SYNC_DELETED:
+                readFile(monitoredFile);
                 fileChannelCache.invalidate(monitoredFile.getPath());
                 stateStore.deleteOffset(monitoredFile.getPath());
                 break;
             case SYNC_RECREATED:
+                readFile(monitoredFile);
                 fileChannelCache.invalidate(monitoredFile.getPath());
                 stateStore.deleteOffset(monitoredFile.getPath());
                 readFile(monitoredFile);
@@ -140,5 +181,6 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
             default:
                 throw new IllegalStateException("monitoredFile.getStatus() provided invalid state <" + monitoredFile.getStatus() + ">");
         }
+        LOGGER.info("<{}> exit for <{}>", monitoredFile.getStatus(), monitoredFile.getPath());
     }
 }
