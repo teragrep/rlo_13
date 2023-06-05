@@ -40,7 +40,7 @@ public class LMDBStateStore implements StateStore {
     private final KeyHashProvider keyHashProvider = new KeyHashProvider();
     public LMDBStateStore(Path stateStorePath) {
         env =
-                create()
+                Env.create()
                         // 2 * 1024 * 1024 * 1024 / (64 (sha-256) + 8 (Long.BYTES) = 29M files
                         .setMapSize((long) 2 * 1024 * 1024 * 1024) //
                         .setMaxDbs(2)
