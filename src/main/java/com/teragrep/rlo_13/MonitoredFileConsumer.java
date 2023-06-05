@@ -133,8 +133,7 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                         fileRecordConsumer.accept(fileRecord);
 
                         // record complete
-                        // persistence at lastRecordStart, partial ones will be re-read
-                        stateStore.setOffset(filePath, recordEnd);
+
 
                         // for next one
                         fileRecord.setStartOffset(recordEnd); // next if any
@@ -146,6 +145,8 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                 }
                 byteBuffer.clear();
             }
+            // persistence at lastRecordStart, partial ones will be re-read
+            stateStore.setOffset(filePath, lastRecordEnd);
         }
         catch (IOException ioException) {
             throw new UncheckedIOException(ioException);
