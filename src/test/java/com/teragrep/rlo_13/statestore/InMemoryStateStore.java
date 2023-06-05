@@ -36,7 +36,14 @@ public class InMemoryStateStore implements StateStore {
 
     @Override
     public long getOffset(Path path) {
-        return pathOffsetMap.get(path);
+        Long offset = pathOffsetMap.get(path);
+        if (offset == null) {
+            return 0;
+        }
+        else {
+            return offset;
+        }
+
     }
 
     @Override

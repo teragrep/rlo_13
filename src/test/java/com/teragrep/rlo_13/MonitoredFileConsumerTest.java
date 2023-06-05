@@ -17,26 +17,78 @@
 
 package com.teragrep.rlo_13;
 
+import com.teragrep.rlo_13.statestore.InMemoryStateStore;
+import com.teragrep.rlo_13.statestore.StateStore;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 public class MonitoredFileConsumerTest {
-
+    private void createTestFile(Path filePath, int records, boolean append) throws IOException {
+        try (FileWriter fileWriter = new FileWriter(filePath.toFile(), append)) {
+            for (int i = 0; i < records; i++) {
+                fileWriter.write(i+"\n");
+                fileWriter.flush();
+            }
+        }
+    }
     @Test
-    public void testReadFile() {
+    public void testReadFile() throws IOException {
+        AtomicLong recordCounter = new AtomicLong();
+        Path testFilePath = Paths.get("target/MonitoredFileConsumerTest#createTestFile");
 
-
+        int records = 10;
 
         try (FileChannelCache fcc = new FileChannelCache()) {
-            Consumer<FileRecord> frc = new Consumer<FileRecord>() {
-                @Override
-                public void accept(FileRecord fileRecord) {
-                    // TODO
-                }
-            };
 
-            //MonitoredFileConsumer mfc = new MonitoredFileConsumer(fcc, stateStore, frc)
+            Consumer<FileRecord> frc = fileRecord -> recordCounter.incrementAndGet();
+
+            StateStore stateStore = new InMemoryStateStore();
+
+            MonitoredFileConsumer mfc = new MonitoredFileConsumer(fcc, stateStore, frc);
+
+            createTestFile(testFilePath, records, false);
+            mfc.readFile(testFilePath);
         }
+
+        Assertions.assertEquals(records, recordCounter.get());
+    }
+
+    @Test
+    public void testReadAppendedFile() throws IOException {
+        AtomicLong recordCounter = new AtomicLong();
+        Path testFilePath = Paths.get("target/MonitoredFileConsumerTest#testReadAppendedFile");
+
+        int records = 10;
+
+        try (FileChannelCache fcc = new FileChannelCache()) {
+
+            Consumer<FileRecord> frc = fileRecord -> recordCounter.incrementAndGet();
+
+            StateStore stateStore = new InMemoryStateStore();
+
+            MonitoredFileConsumer mfc = new MonitoredFileConsumer(fcc, stateStore, frc);
+
+            // create
+            createTestFile(testFilePath, records, false);
+
+            // read 1
+            mfc.readFile(testFilePath);
+
+            // append
+            createTestFile(testFilePath, records, true);
+
+            // read 2
+            mfc.readFile(testFilePath);
+        }
+
+        Assertions.assertEquals(records * 2, recordCounter.get());
     }
 }

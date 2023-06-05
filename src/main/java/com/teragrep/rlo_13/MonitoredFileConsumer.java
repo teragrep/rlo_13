@@ -44,20 +44,20 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
         this.fileRecordConsumer = fileRecordConsumer;
     }
 
-    void readFile(MonitoredFile monitoredFile) {
-        final Path filePath = monitoredFile.getPath();
+    void readFile(Path filePath) {
+
         // object to pass metadata within
-        FileRecord fileRecord = new FileRecord(monitoredFile.getPath());
+        FileRecord fileRecord = new FileRecord(filePath);
 
 
 
         // !! trace log existing position
-        FileChannel fileChannel = fileChannelCache.acquire(monitoredFile.getPath());
+        FileChannel fileChannel = fileChannelCache.acquire(filePath);
         if (fileChannel == null) {
             if(LOGGER.isTraceEnabled()) {
                 LOGGER.trace("Gave up on <[{}]> due to null FileChannel.",filePath);
             }
-            stateStore.deleteOffset(monitoredFile.getPath());
+            stateStore.deleteOffset(filePath);
             return;
         }
 
@@ -73,7 +73,7 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
         ByteBuffer outputBuffer = ByteBuffer.allocateDirect(1024*1024); // todo configurable
 
 
-        long lastRecordEnd = stateStore.getOffset(monitoredFile.getPath());
+        long lastRecordEnd = stateStore.getOffset(filePath);
         try {
             if (fileChannel.size() < lastRecordEnd) {
                 if(LOGGER.isTraceEnabled()) {
@@ -85,7 +85,7 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                     );
                 }
                 lastRecordEnd = 0;
-                stateStore.setOffset(monitoredFile.getPath(), lastRecordEnd);
+                stateStore.setOffset(filePath, lastRecordEnd);
             }
 
             LOGGER.info("lastRecordEnd <{}> for <{}>", lastRecordEnd, filePath);
@@ -128,7 +128,7 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                         fileRecordConsumer.accept(fileRecord);
 
                         // record complete
-                        stateStore.setOffset(monitoredFile.getPath(), fileChannel.position());
+                        stateStore.setOffset(filePath, fileChannel.position());
 
                         // for next one
                         fileRecord.setStartOffset(fileChannel.position()); // next if any
@@ -145,7 +145,7 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
             throw new UncheckedIOException(ioException);
         }
         finally {
-            fileChannelCache.release(monitoredFile.getPath());
+            fileChannelCache.release(filePath);
         }
     }
 
@@ -162,25 +162,25 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
         LOGGER.info("<{}> entry for <{}>", monitoredFile.getStatus(), monitoredFile.getPath());
         switch (monitoredFile.getStatus()) {
             case SYNC_NEW:
-                readFile(monitoredFile);
+                readFile(monitoredFile.getPath());
                 break;
             case SYNC_MODIFIED:
-                readFile(monitoredFile);
+                readFile(monitoredFile.getPath());
                 break;
             case SYNC_DELETED:
-                readFile(monitoredFile);
-                readFile(monitoredFile);
-                readFile(monitoredFile);
-                readFile(monitoredFile);
-                readFile(monitoredFile);
+                readFile(monitoredFile.getPath());
+                readFile(monitoredFile.getPath());
+                readFile(monitoredFile.getPath());
+                readFile(monitoredFile.getPath());
+                readFile(monitoredFile.getPath());
                 fileChannelCache.invalidate(monitoredFile.getPath());
                 stateStore.deleteOffset(monitoredFile.getPath());
                 break;
             case SYNC_RECREATED:
-                readFile(monitoredFile);
+                readFile(monitoredFile.getPath());
                 fileChannelCache.invalidate(monitoredFile.getPath());
                 stateStore.deleteOffset(monitoredFile.getPath());
-                readFile(monitoredFile);
+                readFile(monitoredFile.getPath());
                 break;
             default:
                 throw new IllegalStateException("monitoredFile.getStatus() provided invalid state <" + monitoredFile.getStatus() + ">");
