@@ -61,11 +61,12 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
             return;
         }
 
-        try {
-            LOGGER.info("fileChannel position <{}>", fileChannel.position());
-            LOGGER.info("fileChannel size <{}>", fileChannel.size());
-        } catch (IOException ignored) {
+        if (LOGGER.isTraceEnabled()) {
+            try {
+                LOGGER.trace("fileChannel position <{}> size <{}>", fileChannel.position(), fileChannel.size());
+            } catch (IOException ignored) {
 
+            }
         }
 
 
@@ -88,7 +89,7 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                 stateStore.setOffset(filePath, lastRecordEnd);
             }
 
-            LOGGER.info("lastRecordEnd <{}> for <{}>", lastRecordEnd, filePath);
+            LOGGER.trace("lastRecordEnd <{}> for <{}>", lastRecordEnd, filePath);
 
             fileChannel.position(lastRecordEnd);
             fileRecord.setStartOffset(lastRecordEnd); // set initial startingPosition
@@ -104,10 +105,6 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                 byteBuffer.flip(); // reading
                 while (byteBuffer.hasRemaining()) {
                     byte b = byteBuffer.get();
-
-                    if (b == '\0') {
-                        throw new RuntimeException("CATTIA " + bytesRead);
-                    }
 
                     if (b != '\n' && outputBuffer.position() != outputBuffer.capacity() - 1) {
                         outputBuffer.put(b);
@@ -159,7 +156,9 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
             );
         }
 
-        LOGGER.info("<{}> entry for <{}>", monitoredFile.getStatus(), monitoredFile.getPath());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("<{}> entry for <{}>", monitoredFile.getStatus(), monitoredFile.getPath());
+        }
         switch (monitoredFile.getStatus()) {
             case SYNC_NEW:
                 readFile(monitoredFile.getPath());
@@ -168,10 +167,6 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
                 readFile(monitoredFile.getPath());
                 break;
             case SYNC_DELETED:
-                readFile(monitoredFile.getPath());
-                readFile(monitoredFile.getPath());
-                readFile(monitoredFile.getPath());
-                readFile(monitoredFile.getPath());
                 readFile(monitoredFile.getPath());
                 fileChannelCache.invalidate(monitoredFile.getPath());
                 stateStore.deleteOffset(monitoredFile.getPath());
@@ -185,6 +180,9 @@ class MonitoredFileConsumer implements Consumer<MonitoredFile> {
             default:
                 throw new IllegalStateException("monitoredFile.getStatus() provided invalid state <" + monitoredFile.getStatus() + ">");
         }
-        LOGGER.info("<{}> exit for <{}>", monitoredFile.getStatus(), monitoredFile.getPath());
+
+        if(LOGGER.isTraceEnabled()) {
+            LOGGER.trace("<{}> exit for <{}>", monitoredFile.getStatus(), monitoredFile.getPath());
+        }
     }
 }
