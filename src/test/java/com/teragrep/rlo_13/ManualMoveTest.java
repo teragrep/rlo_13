@@ -140,7 +140,7 @@ public class ManualMoveTest {
                         }
 
                         try {
-                            Thread.sleep(1000);
+                            Thread.sleep(2000);
                             Files.delete(Paths.get(path + "/input.txt"));
                         }
                         catch (Exception ignored) {
