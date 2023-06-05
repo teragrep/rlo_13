@@ -134,4 +134,48 @@ public class MonitoredFileConsumerTest {
 
         Assertions.assertEquals(records * 2, recordCounter.get());
     }
+
+    @Test
+    public void testReadMovedFile() throws IOException {
+        AtomicLong recordCounter = new AtomicLong();
+        Path testFilePath = Paths.get("target/MonitoredFileConsumerTest#testReadMovedFile");
+        Path testMovedFilePath = Paths.get("target/MonitoredFileConsumerTest#testReadMovedFile.moved");
+
+        int records = 10;
+
+        try (FileChannelCache fcc = new FileChannelCache()) {
+
+            Consumer<FileRecord> frc = fileRecord -> recordCounter.incrementAndGet();
+
+            StateStore stateStore = new InMemoryStateStore();
+
+            MonitoredFileConsumer mfc = new MonitoredFileConsumer(fcc, stateStore, frc);
+
+            // create
+            try (FileWriter fileWriter = new FileWriter(testFilePath.toFile(), false)) {
+                // write 1
+                for (int i = 0; i < records; i++) {
+                    fileWriter.write(i+"\n");
+                    fileWriter.flush();
+                }
+
+                // read 1
+                mfc.readFile(testFilePath);
+
+                // delete
+                Files.move(testFilePath, testMovedFilePath);
+
+                // write 2
+                for (int i = 0; i < records; i++) {
+                    fileWriter.write(i+"\n");
+                    fileWriter.flush();
+                }
+
+                // read 2
+                mfc.readFile(testFilePath);
+            }
+        }
+
+        Assertions.assertEquals(records * 2, recordCounter.get());
+    }
 }
