@@ -17,14 +17,37 @@
 package com.teragrep.rlo_13.statestore;
 
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
-public interface StateStore extends AutoCloseable {
-    void setOffset(Path path, long offset);
+public class InMemoryStateStore implements StateStore {
 
-    void deleteOffset(Path path);
-
-    long getOffset(Path path);
+    private final Map<Path, Long> pathOffsetMap = new HashMap<>();
 
     @Override
-    void close();
+    public void setOffset(Path path, long offset) {
+        pathOffsetMap.put(path, offset);
+    }
+
+    @Override
+    public void deleteOffset(Path path) {
+        pathOffsetMap.remove(path);
+    }
+
+    @Override
+    public long getOffset(Path path) {
+        Long offset = pathOffsetMap.get(path);
+        if (offset == null) {
+            return 0;
+        }
+        else {
+            return offset;
+        }
+
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
 }
