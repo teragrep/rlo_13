@@ -7,7 +7,7 @@
   <groupId>com.teragrep</groupId>
   <artifactId>rlo_13</artifactId>
   <version>${revision}${sha1}${changelist}</version>
-  <description>Java Stateful File Reader</description>
+  <description>File reader with persistence for Java</description>
   <name>rlo_13</name>
   <url>https://teragrep.com</url>
   <properties>
